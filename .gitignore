@@ -1,0 +1,5 @@
+/analyzer
+*.exe
+*.test
+*.out
+.env

@@ -1,0 +1,39 @@
+image:
+  repository: ghcr.io/unique/loki-ai-analyzer
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+schedule: "0 */12 * * *"
+
+config:
+  lokiURL: "http://loki-gateway.monitoring.svc.cluster.local:80"
+  lokiQuery: '{namespace=~".+"}'
+  lokiQueryLimit: "5000"
+  analysisPeriod: "12h"
+  anthropicModel: "claude-opus-4-20250514"
+  anthropicContextWindow: "1000000"
+  promptFile: "/etc/analyzer/prompts/system.md"
+  logLevel: "info"
+
+secrets:
+  anthropicAPIKey: ""
+  slackWebhookURL: ""
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+jobHistoryLimit:
+  successful: 3
+  failed: 3
+
+backoffLimit: 1

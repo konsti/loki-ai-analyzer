@@ -6,8 +6,16 @@ metadata:
     {{- include "loki-ai-analyzer.labels" . | nindent 4 }}
 data:
   LOKI_ANALYZER_LOKI_URL: {{ .Values.config.lokiURL | quote }}
-  LOKI_ANALYZER_LOKI_QUERY: {{ .Values.config.lokiQuery | quote }}
   LOKI_ANALYZER_LOKI_QUERY_LIMIT: {{ .Values.config.lokiQueryLimit | quote }}
+  {{- if .Values.config.lokiServices }}
+  LOKI_ANALYZER_LOKI_SERVICES: {{ .Values.config.lokiServices | quote }}
+  {{- end }}
+  {{- if .Values.config.lokiNamespaces }}
+  LOKI_ANALYZER_LOKI_NAMESPACES: {{ .Values.config.lokiNamespaces | quote }}
+  {{- end }}
+  {{- if .Values.config.lokiQuery }}
+  LOKI_ANALYZER_LOKI_QUERY: {{ .Values.config.lokiQuery | quote }}
+  {{- end }}
   LOKI_ANALYZER_ANALYSIS_PERIOD: {{ .Values.config.analysisPeriod | quote }}
   LOKI_ANALYZER_ANTHROPIC_MODEL: {{ .Values.config.anthropicModel | quote }}
   LOKI_ANALYZER_ANTHROPIC_CONTEXT_WINDOW: {{ .Values.config.anthropicContextWindow | quote }}

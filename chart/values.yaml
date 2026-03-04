@@ -7,8 +7,12 @@ schedule: "0 */12 * * *"
 
 config:
   lokiURL: "http://loki-gateway.monitoring.svc.cluster.local:80"
-  lokiQuery: '{namespace=~".+"}'
   lokiQueryLimit: "5000"
+  # Optional filters (comma-separated). Empty = all.
+  lokiServices: ""
+  lokiNamespaces: ""
+  # Advanced: raw LogQL override (takes precedence over filters if set)
+  lokiQuery: ""
   analysisPeriod: "12h"
   anthropicModel: "claude-opus-4-20250514"
   anthropicContextWindow: "1000000"

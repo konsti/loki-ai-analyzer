@@ -29,8 +29,13 @@ func main() {
 	}
 	logger = logger.Level(level)
 
+	lokiQuery := cfg.Loki.BuildQuery()
+
 	logger.Info().
 		Str("loki_url", cfg.Loki.URL).
+		Str("loki_query", lokiQuery).
+		Str("filter_services", cfg.Loki.Services).
+		Str("filter_namespaces", cfg.Loki.Namespaces).
 		Str("model", cfg.Anthropic.Model).
 		Dur("analysis_period", cfg.Analysis.Period).
 		Msg("starting loki log analyzer")
@@ -38,19 +43,19 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	if err := run(ctx, cfg, logger); err != nil {
+	if err := run(ctx, cfg, lokiQuery, logger); err != nil {
 		logger.Fatal().Err(err).Msg("analyzer run failed")
 	}
 
 	logger.Info().Msg("analysis complete")
 }
 
-func run(ctx context.Context, cfg *config.Config, logger zerolog.Logger) error {
+func run(ctx context.Context, cfg *config.Config, lokiQuery string, logger zerolog.Logger) error {
 	end := time.Now()
 	start := end.Add(-cfg.Analysis.Period)
 
 	lokiClient := loki.NewClient(cfg.Loki.URL, logger)
-	entries, err := lokiClient.QueryRange(ctx, cfg.Loki.Query, start, end, cfg.Loki.QueryLimit)
+	entries, err := lokiClient.QueryRange(ctx, lokiQuery, start, end, cfg.Loki.QueryLimit)
 	if err != nil {
 		return err
 	}

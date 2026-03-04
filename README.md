@@ -21,7 +21,9 @@ All configuration is via environment variables with the `LOKI_ANALYZER_` prefix.
 | Variable | Default | Description |
 |---|---|---|
 | `LOKI_ANALYZER_LOKI_URL` | `http://loki-gateway.monitoring.svc.cluster.local:80` | Loki HTTP API base URL |
-| `LOKI_ANALYZER_LOKI_QUERY` | `{namespace=~".+"}` | LogQL query to fetch logs |
+| `LOKI_ANALYZER_LOKI_SERVICES` | *(empty -- all)* | Comma-separated list of services to watch (matches `app` label) |
+| `LOKI_ANALYZER_LOKI_NAMESPACES` | *(empty -- all)* | Comma-separated list of namespaces to watch |
+| `LOKI_ANALYZER_LOKI_QUERY` | *(empty -- built from filters)* | Raw LogQL override (takes precedence over filters if set) |
 | `LOKI_ANALYZER_LOKI_QUERY_LIMIT` | `5000` | Max log entries per Loki request |
 | `LOKI_ANALYZER_ANALYSIS_PERIOD` | `12h` | Time window to fetch logs for |
 | `LOKI_ANALYZER_ANTHROPIC_API_KEY` | *(required)* | Anthropic API key |
@@ -46,9 +48,9 @@ Override any default in `chart/values.yaml`:
 ```bash
 helm install loki-ai-analyzer ./chart \
   --set schedule="0 6,18 * * *" \
-  --set config.lokiQuery='{namespace="production"}' \
+  --set config.lokiServices="api-gateway,payment-service" \
+  --set config.lokiNamespaces="production" \
   --set config.analysisPeriod="6h" \
-  --set config.anthropicModel="claude-sonnet-4-20250514" \
   --set secrets.anthropicAPIKey="sk-ant-..." \
   --set secrets.slackWebhookURL="https://hooks.slack.com/services/..."
 ```

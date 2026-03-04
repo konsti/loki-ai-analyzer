@@ -12,6 +12,49 @@ type LokiConfig struct {
 	URL        string `mapstructure:"url"`
 	Query      string `mapstructure:"query"`
 	QueryLimit int    `mapstructure:"query_limit"`
+	Namespaces string `mapstructure:"namespaces"`
+	Services   string `mapstructure:"services"`
+}
+
+func (l LokiConfig) BuildQuery() string {
+	if l.Query != "" {
+		return l.Query
+	}
+
+	var matchers []string
+
+	if l.Namespaces != "" {
+		parts := splitAndTrim(l.Namespaces)
+		if len(parts) == 1 {
+			matchers = append(matchers, fmt.Sprintf(`namespace="%s"`, parts[0]))
+		} else {
+			matchers = append(matchers, fmt.Sprintf(`namespace=~"%s"`, strings.Join(parts, "|")))
+		}
+	} else {
+		matchers = append(matchers, `namespace=~".+"`)
+	}
+
+	if l.Services != "" {
+		parts := splitAndTrim(l.Services)
+		if len(parts) == 1 {
+			matchers = append(matchers, fmt.Sprintf(`app="%s"`, parts[0]))
+		} else {
+			matchers = append(matchers, fmt.Sprintf(`app=~"%s"`, strings.Join(parts, "|")))
+		}
+	}
+
+	return fmt.Sprintf(`{%s}`, strings.Join(matchers, ", "))
+}
+
+func splitAndTrim(s string) []string {
+	raw := strings.Split(s, ",")
+	out := make([]string, 0, len(raw))
+	for _, v := range raw {
+		if t := strings.TrimSpace(v); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 type AnthropicConfig struct {
@@ -51,7 +94,6 @@ func Load() (*Config, error) {
 	v.AutomaticEnv()
 
 	v.SetDefault("loki.url", "http://loki-gateway.monitoring.svc.cluster.local:80")
-	v.SetDefault("loki.query", `{namespace=~".+"}`)
 	v.SetDefault("loki.query_limit", 5000)
 	v.SetDefault("anthropic.model", "claude-opus-4-20250514")
 	v.SetDefault("anthropic.context_window", 1_000_000)

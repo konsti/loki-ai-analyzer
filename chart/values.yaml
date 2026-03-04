@@ -1,9 +1,9 @@
 image:
-  repository: ghcr.io/unique/loki-ai-analyzer
+  repository: ghcr.io/konsti/loki-ai-analyzer
   tag: "latest"
   pullPolicy: IfNotPresent
 
-schedule: "0 */12 * * *"
+schedule: "0 */6 * * *"
 
 config:
   lokiURL: "http://loki-gateway.monitoring.svc.cluster.local:80"
@@ -13,13 +13,20 @@ config:
   lokiNamespaces: ""
   # Advanced: raw LogQL override (takes precedence over filters if set)
   lokiQuery: ""
-  analysisPeriod: "12h"
-  anthropicModel: "claude-opus-4-20250514"
+  analysisPeriod: "6h"
+  anthropicModel: "claude-opus-4-6"
   anthropicContextWindow: "1000000"
   promptFile: "/etc/analyzer/prompts/system.md"
   logLevel: "info"
 
 secrets:
+  # Use a pre-existing Secret (e.g. created by ExternalSecrets).
+  # When set, the chart will not create its own Secret.
+  existingSecret: ""
+  # Keys inside the secret that hold each value.
+  anthropicAPIKeyKey: anthropic-api-key
+  slackWebhookURLKey: slack-webhook-url
+  # Only used when existingSecret is not set.
   anthropicAPIKey: ""
   slackWebhookURL: ""
 

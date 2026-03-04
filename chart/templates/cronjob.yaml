@@ -27,7 +27,16 @@ spec:
               envFrom:
                 - configMapRef:
                     name: {{ include "loki-ai-analyzer.fullname" . }}
-                - secretRef:
-                    name: {{ include "loki-ai-analyzer.fullname" . }}
+              env:
+                - name: LOKI_ANALYZER_ANTHROPIC_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "loki-ai-analyzer.secretName" . }}
+                      key: {{ .Values.secrets.anthropicAPIKeyKey }}
+                - name: LOKI_ANALYZER_SLACK_WEBHOOK_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "loki-ai-analyzer.secretName" . }}
+                      key: {{ .Values.secrets.slackWebhookURLKey }}
               resources:
                 {{- toYaml .Values.resources | nindent 16 }}

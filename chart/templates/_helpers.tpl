@@ -23,6 +23,10 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
+{{- define "loki-ai-analyzer.secretName" -}}
+{{- default (include "loki-ai-analyzer.fullname" .) .Values.secrets.existingSecret }}
+{{- end }}
+
 {{- define "loki-ai-analyzer.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
 {{- default (include "loki-ai-analyzer.fullname" .) .Values.serviceAccount.name }}

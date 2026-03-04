@@ -93,11 +93,11 @@ func Load() (*Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
 
-	v.SetDefault("loki.url", "http://loki-gateway.monitoring.svc.cluster.local:80")
+	v.SetDefault("loki.url", "http://loki-gateway.system.svc.cluster.local:80")
 	v.SetDefault("loki.query_limit", 5000)
-	v.SetDefault("anthropic.model", "claude-opus-4-20250514")
+	v.SetDefault("anthropic.model", "claude-opus-4-6")
 	v.SetDefault("anthropic.context_window", 1_000_000)
-	v.SetDefault("analysis.period", "12h")
+	v.SetDefault("analysis.period", "6h")
 	v.SetDefault("log_level", "info")
 	v.SetDefault("prompt_file", "/etc/analyzer/prompts/system.md")
 

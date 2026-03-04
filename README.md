@@ -20,14 +20,14 @@ All configuration is via environment variables with the `LOKI_ANALYZER_` prefix.
 
 | Variable | Default | Description |
 |---|---|---|
-| `LOKI_ANALYZER_LOKI_URL` | `http://loki-gateway.monitoring.svc.cluster.local:80` | Loki HTTP API base URL |
+| `LOKI_ANALYZER_LOKI_URL` | `http://loki-gateway.system.svc.cluster.local:80` | Loki HTTP API base URL |
 | `LOKI_ANALYZER_LOKI_SERVICES` | *(empty -- all)* | Comma-separated list of services to watch (matches `app` label) |
 | `LOKI_ANALYZER_LOKI_NAMESPACES` | *(empty -- all)* | Comma-separated list of namespaces to watch |
 | `LOKI_ANALYZER_LOKI_QUERY` | *(empty -- built from filters)* | Raw LogQL override (takes precedence over filters if set) |
 | `LOKI_ANALYZER_LOKI_QUERY_LIMIT` | `5000` | Max log entries per Loki request |
-| `LOKI_ANALYZER_ANALYSIS_PERIOD` | `12h` | Time window to fetch logs for |
+| `LOKI_ANALYZER_ANALYSIS_PERIOD` | `6h` | Time window to fetch logs for |
 | `LOKI_ANALYZER_ANTHROPIC_API_KEY` | *(required)* | Anthropic API key |
-| `LOKI_ANALYZER_ANTHROPIC_MODEL` | `claude-opus-4-20250514` | Anthropic model to use |
+| `LOKI_ANALYZER_ANTHROPIC_MODEL` | `claude-opus-4-6` | Anthropic model to use |
 | `LOKI_ANALYZER_ANTHROPIC_CONTEXT_WINDOW` | `1000000` | Model context window size in tokens (chunk size derived at 80%) |
 | `LOKI_ANALYZER_PROMPT_FILE` | `/etc/analyzer/prompts/system.md` | Path to the system prompt markdown file |
 | `LOKI_ANALYZER_SLACK_WEBHOOK_URL` | *(required)* | Slack incoming webhook URL |

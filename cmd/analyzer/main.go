@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -38,6 +39,7 @@ func main() {
 		Str("filter_namespaces", cfg.Loki.Namespaces).
 		Str("model", cfg.Anthropic.Model).
 		Dur("analysis_period", cfg.Analysis.Period).
+		Str("cache_file", cfg.CacheFile).
 		Msg("starting loki log analyzer")
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -51,29 +53,30 @@ func main() {
 }
 
 func run(ctx context.Context, cfg *config.Config, lokiQuery string, logger zerolog.Logger) error {
-	end := time.Now()
-	start := end.Add(-cfg.Analysis.Period)
+	cacheFile := cfg.CacheFile
 
-	lokiClient := loki.NewClient(cfg.Loki.URL, logger)
-	entries, err := lokiClient.QueryRange(ctx, lokiQuery, start, end, cfg.Loki.QueryLimit)
+	if err := ensureCachedLogs(ctx, cfg, lokiQuery, cacheFile, logger); err != nil {
+		return err
+	}
+
+	logs, err := os.ReadFile(cacheFile)
 	if err != nil {
 		return err
 	}
 
-	if len(entries) == 0 {
+	formattedLogs := strings.TrimSuffix(string(logs), loki.CacheCompleteMarker)
+	if len(formattedLogs) == 0 {
 		logger.Info().Msg("no logs returned from loki, nothing to analyze")
+		os.Remove(cacheFile)
 		return nil
 	}
-
-	logger.Info().Int("log_entries", len(entries)).Msg("fetched logs from loki")
-
-	formattedLogs := loki.FormatLogs(entries)
 
 	ai, err := analyzer.New(
 		cfg.Anthropic.APIKey,
 		cfg.Anthropic.Model,
 		cfg.PromptFile,
 		cfg.Anthropic.MaxChunkChars(),
+		cfg.Anthropic.ContextWindow,
 		logger,
 	)
 	if err != nil {
@@ -85,6 +88,8 @@ func run(ctx context.Context, cfg *config.Config, lokiQuery string, logger zerol
 		return err
 	}
 
+	os.Remove(cacheFile)
+
 	if result == "NO_FINDINGS" {
 		logger.Info().Msg("analysis found no notable issues")
 		return nil
@@ -94,4 +99,51 @@ func run(ctx context.Context, cfg *config.Config, lokiQuery string, logger zerol
 
 	n := notifier.New(cfg.Slack.WebhookURL, logger)
 	return n.Send(result)
+}
+
+// ensureCachedLogs checks for a valid (complete) cache file. If missing or
+// incomplete it fetches from Loki, streaming each page directly to disk.
+func ensureCachedLogs(ctx context.Context, cfg *config.Config, lokiQuery, cacheFile string, logger zerolog.Logger) error {
+	if isCompleteCacheFile(cacheFile) {
+		info, _ := os.Stat(cacheFile)
+		logger.Info().Int64("cached_bytes", info.Size()).Msg("using cached logs from previous run")
+		return nil
+	}
+
+	os.Remove(cacheFile)
+
+	f, err := os.Create(cacheFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	end := time.Now()
+	start := end.Add(-cfg.Analysis.Period)
+
+	lokiClient := loki.NewClient(cfg.Loki.URL, logger)
+	totalEntries, err := lokiClient.FetchAndWrite(ctx, f, lokiQuery, start, end, cfg.Loki.QueryLimit)
+	if err != nil {
+		f.Close()
+		os.Remove(cacheFile)
+		return err
+	}
+
+	logger.Info().Int("log_entries", totalEntries).Msg("fetched logs from loki")
+
+	if _, err := f.WriteString(loki.CacheCompleteMarker); err != nil {
+		f.Close()
+		os.Remove(cacheFile)
+		return err
+	}
+
+	return nil
+}
+
+func isCompleteCacheFile(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	return len(data) > 0 && strings.HasSuffix(string(data), loki.CacheCompleteMarker)
 }

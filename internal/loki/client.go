@@ -15,6 +15,8 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const CacheCompleteMarker = "\n#COMPLETE\n"
+
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
@@ -48,27 +50,35 @@ type streamResult struct {
 	Values [][]string        `json:"values"` // [nanosecond_timestamp, log_line]
 }
 
-func (c *Client) QueryRange(ctx context.Context, query string, start, end time.Time, limit int) ([]LogEntry, error) {
-	var allEntries []LogEntry
+// FetchAndWrite queries Loki and streams formatted log lines directly to w,
+// keeping memory usage proportional to a single page rather than the full result set.
+func (c *Client) FetchAndWrite(ctx context.Context, w io.Writer, query string, start, end time.Time, limit int) (int, error) {
 	windowStart := start
+	totalEntries := 0
 
 	for windowStart.Before(end) {
 		entries, err := c.queryWindow(ctx, query, windowStart, end, limit)
 		if err != nil {
-			return nil, err
+			return totalEntries, err
 		}
 
 		if len(entries) == 0 {
 			break
 		}
 
-		allEntries = append(allEntries, entries...)
+		for _, e := range entries {
+			fmt.Fprintf(w, "[%s] %s | %s\n",
+				e.Timestamp.Format(time.RFC3339),
+				formatLabels(e.Labels),
+				e.Line,
+			)
+		}
+		totalEntries += len(entries)
 
 		if len(entries) < limit {
 			break
 		}
 
-		// Move window past the last entry to paginate
 		windowStart = entries[len(entries)-1].Timestamp.Add(1 * time.Nanosecond)
 		c.logger.Debug().
 			Time("next_window_start", windowStart).
@@ -76,17 +86,13 @@ func (c *Client) QueryRange(ctx context.Context, query string, start, end time.T
 			Msg("paginating to next window")
 	}
 
-	sort.Slice(allEntries, func(i, j int) bool {
-		return allEntries[i].Timestamp.Before(allEntries[j].Timestamp)
-	})
-
 	c.logger.Info().
-		Int("total_entries", len(allEntries)).
+		Int("total_entries", totalEntries).
 		Time("start", start).
 		Time("end", end).
 		Msg("log fetch complete")
 
-	return allEntries, nil
+	return totalEntries, nil
 }
 
 func (c *Client) queryWindow(ctx context.Context, query string, start, end time.Time, limit int) ([]LogEntry, error) {
@@ -156,18 +162,6 @@ func (c *Client) queryWindow(ctx context.Context, query string, start, end time.
 	})
 
 	return entries, nil
-}
-
-func FormatLogs(entries []LogEntry) string {
-	var sb strings.Builder
-	for _, e := range entries {
-		fmt.Fprintf(&sb, "[%s] %s | %s\n",
-			e.Timestamp.Format(time.RFC3339),
-			formatLabels(e.Labels),
-			e.Line,
-		)
-	}
-	return sb.String()
 }
 
 func formatLabels(labels map[string]string) string {

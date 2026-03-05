@@ -21,15 +21,17 @@ All configuration is via environment variables with the `LOKI_ANALYZER_` prefix.
 | Variable | Default | Description |
 |---|---|---|
 | `LOKI_ANALYZER_LOKI_URL` | `http://loki-gateway.system.svc.cluster.local:80` | Loki HTTP API base URL |
-| `LOKI_ANALYZER_LOKI_SERVICES` | *(empty -- all)* | Comma-separated list of services to watch (matches `app` label) |
+| `LOKI_ANALYZER_LOKI_SERVICES` | *(empty -- all)* | Comma-separated list of services to watch |
+| `LOKI_ANALYZER_LOKI_SERVICE_LABEL` | `service_name` | Loki label used to match services |
 | `LOKI_ANALYZER_LOKI_NAMESPACES` | *(empty -- all)* | Comma-separated list of namespaces to watch |
 | `LOKI_ANALYZER_LOKI_QUERY` | *(empty -- built from filters)* | Raw LogQL override (takes precedence over filters if set) |
 | `LOKI_ANALYZER_LOKI_QUERY_LIMIT` | `5000` | Max log entries per Loki request |
 | `LOKI_ANALYZER_ANALYSIS_PERIOD` | `6h` | Time window to fetch logs for |
 | `LOKI_ANALYZER_ANTHROPIC_API_KEY` | *(required)* | Anthropic API key |
 | `LOKI_ANALYZER_ANTHROPIC_MODEL` | `claude-opus-4-6` | Anthropic model to use |
-| `LOKI_ANALYZER_ANTHROPIC_CONTEXT_WINDOW` | `1000000` | Model context window size in tokens (chunk size derived at 80%) |
+| `LOKI_ANALYZER_ANTHROPIC_CONTEXT_WINDOW` | `200000` | Context window in tokens. Set to `1000000` to enable 1M beta (requires tier 4) |
 | `LOKI_ANALYZER_PROMPT_FILE` | `/etc/analyzer/prompts/system.md` | Path to the system prompt markdown file |
+| `LOKI_ANALYZER_CACHE_FILE` | `/tmp/loki-analyzer-logs.txt` | Path to cache fetched logs (survives retries, cleaned up on success) |
 | `LOKI_ANALYZER_SLACK_WEBHOOK_URL` | *(required)* | Slack incoming webhook URL |
 | `LOKI_ANALYZER_LOG_LEVEL` | `info` | Log level (`debug`, `info`, `warn`, `error`) |
 
@@ -55,6 +57,15 @@ helm install loki-ai-analyzer ./chart \
   --set secrets.slackWebhookURL="https://hooks.slack.com/services/..."
 ```
 
+Use an existing secret (e.g. created by ExternalSecrets) instead of having the chart manage one:
+
+```bash
+helm install loki-ai-analyzer ./chart \
+  --set secrets.existingSecret="my-external-secret" \
+  --set secrets.anthropicAPIKeyKey="my-anthropic-key" \
+  --set secrets.slackWebhookURLKey="my-slack-url"
+```
+
 ### Docker
 
 ```bash
@@ -65,6 +76,29 @@ docker run --rm \
   -e LOKI_ANALYZER_ANTHROPIC_API_KEY="sk-ant-..." \
   -e LOKI_ANALYZER_SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..." \
   loki-ai-analyzer
+```
+
+### Local Development
+
+Port-forward Loki and run the analyzer locally:
+
+```bash
+kubectl port-forward -n system svc/loki-gateway 3100:80
+```
+
+```bash
+export $(grep -v '^#' .env | xargs) && go run ./cmd/analyzer
+```
+
+Example `.env`:
+
+```bash
+LOKI_ANALYZER_LOKI_URL=http://localhost:3100
+LOKI_ANALYZER_ANTHROPIC_API_KEY=sk-ant-...
+LOKI_ANALYZER_SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+LOKI_ANALYZER_ANALYSIS_PERIOD=15m
+LOKI_ANALYZER_LOG_LEVEL=debug
+LOKI_ANALYZER_PROMPT_FILE=prompts/system.md
 ```
 
 ## Project Structure

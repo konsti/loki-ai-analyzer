@@ -10,13 +10,15 @@ config:
   lokiQueryLimit: "5000"
   # Optional filters (comma-separated). Empty = all.
   lokiServices: ""
+  lokiServiceLabel: "service_name"
   lokiNamespaces: ""
   # Advanced: raw LogQL override (takes precedence over filters if set)
   lokiQuery: ""
   analysisPeriod: "6h"
   anthropicModel: "claude-opus-4-6"
-  anthropicContextWindow: "1000000"
+  anthropicContextWindow: "200000"
   promptFile: "/etc/analyzer/prompts/system.md"
+  cacheFile: "/tmp/loki-analyzer-logs.txt"
   logLevel: "info"
 
 secrets:

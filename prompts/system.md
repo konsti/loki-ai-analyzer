@@ -15,6 +15,7 @@ For each finding, provide:
 - **Evidence**: Relevant log excerpts that support the finding
 - **Recommendation**: Specific, actionable steps to resolve or mitigate
 
+Do not report on details that are good or where no action is needed.
 If the logs look healthy and you find no notable issues, respond with exactly: "NO_FINDINGS"
 
 Be concise but thorough. Focus on actionable insights, not noise.

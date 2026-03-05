@@ -9,11 +9,12 @@ import (
 )
 
 type LokiConfig struct {
-	URL        string `mapstructure:"url"`
-	Query      string `mapstructure:"query"`
-	QueryLimit int    `mapstructure:"query_limit"`
-	Namespaces string `mapstructure:"namespaces"`
-	Services   string `mapstructure:"services"`
+	URL          string `mapstructure:"url"`
+	Query        string `mapstructure:"query"`
+	QueryLimit   int    `mapstructure:"query_limit"`
+	Namespaces   string `mapstructure:"namespaces"`
+	Services     string `mapstructure:"services"`
+	ServiceLabel string `mapstructure:"service_label"`
 }
 
 func (l LokiConfig) BuildQuery() string {
@@ -35,11 +36,12 @@ func (l LokiConfig) BuildQuery() string {
 	}
 
 	if l.Services != "" {
+		label := l.ServiceLabel
 		parts := splitAndTrim(l.Services)
 		if len(parts) == 1 {
-			matchers = append(matchers, fmt.Sprintf(`app="%s"`, parts[0]))
+			matchers = append(matchers, fmt.Sprintf(`%s="%s"`, label, parts[0]))
 		} else {
-			matchers = append(matchers, fmt.Sprintf(`app=~"%s"`, strings.Join(parts, "|")))
+			matchers = append(matchers, fmt.Sprintf(`%s=~"%s"`, label, strings.Join(parts, "|")))
 		}
 	}
 
@@ -64,9 +66,11 @@ type AnthropicConfig struct {
 }
 
 func (a AnthropicConfig) MaxChunkChars() int {
-	const charsPerToken = 4
-	usableTokens := int(float64(a.ContextWindow) * 0.80)
-	return usableTokens * charsPerToken
+	// Log data tokenizes at ~2.3 chars/token due to timestamps, JSON, labels.
+	// Reserve 10K tokens for system prompt + output (max_tokens=8192).
+	const charsPerToken = 2.3
+	usableTokens := a.ContextWindow - 10_000
+	return int(float64(usableTokens) * charsPerToken)
 }
 
 type SlackConfig struct {
@@ -84,6 +88,7 @@ type Config struct {
 	Analysis   AnalysisConfig  `mapstructure:"analysis"`
 	LogLevel   string          `mapstructure:"log_level"`
 	PromptFile string          `mapstructure:"prompt_file"`
+	CacheFile  string          `mapstructure:"cache_file"`
 }
 
 func Load() (*Config, error) {
@@ -94,12 +99,19 @@ func Load() (*Config, error) {
 	v.AutomaticEnv()
 
 	v.SetDefault("loki.url", "http://loki-gateway.system.svc.cluster.local:80")
+	v.SetDefault("loki.query", "")
 	v.SetDefault("loki.query_limit", 5000)
+	v.SetDefault("loki.namespaces", "")
+	v.SetDefault("loki.services", "")
+	v.SetDefault("loki.service_label", "service_name")
+	v.SetDefault("anthropic.api_key", "")
 	v.SetDefault("anthropic.model", "claude-opus-4-6")
-	v.SetDefault("anthropic.context_window", 1_000_000)
+	v.SetDefault("anthropic.context_window", 200_000)
 	v.SetDefault("analysis.period", "6h")
+	v.SetDefault("slack.webhook_url", "")
 	v.SetDefault("log_level", "info")
 	v.SetDefault("prompt_file", "/etc/analyzer/prompts/system.md")
+	v.SetDefault("cache_file", "/tmp/loki-analyzer-logs.txt")
 
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {

@@ -38,5 +38,11 @@ spec:
                     secretKeyRef:
                       name: {{ include "loki-ai-analyzer.secretName" . }}
                       key: {{ .Values.secrets.slackWebhookURLKey }}
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
               resources:
                 {{- toYaml .Values.resources | nindent 16 }}
+          volumes:
+            - name: tmp
+              emptyDir: {}
